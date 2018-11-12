@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 public class NettyClient {
     private static final int MAX_RETRY = 5;
     private static final String HOST = "127.0.0.1";
-    private static final int PORT = 8000;
+    private static final int PORT = 8001;
 
 
     public static void main(String[] args) {
@@ -31,8 +31,11 @@ public class NettyClient {
 
         Bootstrap bootstrap = new Bootstrap();
         bootstrap
+                // 1.指定线程模型，与IOClient.java 创建的线程联系起来，省略很多
                 .group(workerGroup)
+                // 2.指定 IO 类型为 NIO
                 .channel(NioSocketChannel.class)
+                // 3.IO 处理逻辑
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
                 .option(ChannelOption.SO_KEEPALIVE, true)
                 .option(ChannelOption.TCP_NODELAY, true)
@@ -42,7 +45,7 @@ public class NettyClient {
                         ch.pipeline().addLast(new ClientHandler());
                     }
                 });
-
+        // 4.建立连接
         connect(bootstrap, HOST, PORT, MAX_RETRY);
     }
 
@@ -55,13 +58,18 @@ public class NettyClient {
             } else if (retry == 0) {
                 System.err.println("重试次数已用完，放弃连接！");
             } else {
-                // 第几次重连
+                // 第几次重连 1 -
                 int order = (MAX_RETRY - retry) + 1;
-                // 本次重连的间隔
+                // 本次重连的间隔 指数退避 间隔时间翻倍
                 int delay = 1 << order;
                 System.err.println(new Date() + ": 连接失败，第" + order + "次重连……");
-                bootstrap.config().group().schedule(() -> connect(bootstrap, host, port, retry - 1), delay, TimeUnit
-                        .SECONDS);
+                /*
+                config() 返回 BootstrapConfig，他是对 Bootstrap 配置参数的抽象
+                group() 返回 线程模型 workerGroup
+                schedule() 方法即可实现定时任务逻辑
+                 */
+                bootstrap.config().group().schedule(() -> connect(bootstrap, host, port, retry - 1), delay,
+                        TimeUnit.SECONDS);
             }
         });
     }
