@@ -33,11 +33,13 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
         ByteBuf requestByteBuf = (ByteBuf) msg;
 
         Packet packet = PacketCodeC.INSTANCE.decode(requestByteBuf);
-
+        //packet不同是表象，更深层次的不同是 对应的处理逻辑不同，所以将处理逻辑抽象成类
         packetTypeMap.forEach((type, classObject) -> {
             if (type.equals(packet.getCommand())) {
                 try {
-                    classObject.newInstance().doChannelRead(ctx, packet);
+                    Packet resposePacket = classObject.newInstance().doChannelRead(ctx, packet);
+                    ByteBuf responseByteBuf = PacketCodeC.INSTANCE.encode(ctx.alloc(), resposePacket);
+                    ctx.channel().writeAndFlush(responseByteBuf);
                 } catch (InstantiationException | IllegalAccessException e) {
                     e.printStackTrace();
                 }

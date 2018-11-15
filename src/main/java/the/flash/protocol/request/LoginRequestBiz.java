@@ -1,16 +1,14 @@
 package the.flash.protocol.request;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import the.flash.protocol.Packet;
-import the.flash.protocol.PacketCodeC;
 import the.flash.protocol.response.LoginResponsePacket;
 
 import java.util.Date;
 
 public class LoginRequestBiz implements ChannelRead {
     @Override
-    public void doChannelRead(ChannelHandlerContext ctx, Packet packet) {
+    public Packet doChannelRead(ChannelHandlerContext ctx, Packet packet) {
         System.out.println(new Date() + ": 收到客户端登录请求……");
         // 登录流程
         LoginRequestPacket loginRequestPacket = (LoginRequestPacket) packet;
@@ -25,9 +23,7 @@ public class LoginRequestBiz implements ChannelRead {
             loginResponsePacket.setSuccess(false);
             System.out.println(new Date() + ": 登录失败!");
         }
-        // 登录响应
-        ByteBuf responseByteBuf = PacketCodeC.INSTANCE.encode(ctx.alloc(), loginResponsePacket);
-        ctx.channel().writeAndFlush(responseByteBuf);
+        return loginResponsePacket;
     }
 
     private boolean valid(LoginRequestPacket loginRequestPacket) {

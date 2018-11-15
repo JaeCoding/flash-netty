@@ -9,5 +9,5 @@ import the.flash.protocol.Packet;
  * @author Jae
  */
 public interface ChannelRead {
-    void doChannelRead(ChannelHandlerContext ctx, Packet packet);
+    Packet doChannelRead(ChannelHandlerContext ctx, Packet packet);
 }
