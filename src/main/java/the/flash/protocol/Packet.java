@@ -12,6 +12,10 @@ public abstract class Packet {
     private Byte version = 1;
 
 
+    /**
+     * 不进行序列化getCommand
+     * @return 序列化后的
+     */
     @JSONField(serialize = false)
     public abstract Byte getCommand();
 }

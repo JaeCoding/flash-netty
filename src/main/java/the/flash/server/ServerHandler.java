@@ -5,12 +5,13 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import the.flash.protocol.Packet;
 import the.flash.protocol.PacketCodeC;
-import the.flash.protocol.request.LoginRequestPacket;
-import the.flash.protocol.request.MessageRequestPacket;
-import the.flash.protocol.response.LoginResponsePacket;
-import the.flash.protocol.response.MessageResponsePacket;
+import the.flash.protocol.request.*;
 
-import java.util.Date;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import static the.flash.protocol.command.Command.LOGIN_REQUEST;
+import static the.flash.protocol.command.Command.MESSAGE_REQUEST;
 
 /**
  * @author chao.yu
@@ -19,43 +20,28 @@ import java.util.Date;
  */
 public class ServerHandler extends ChannelInboundHandlerAdapter {
 
+    private static Map<Byte, Class<? extends ChannelRead>> packetTypeMap;
+
+    static {
+        packetTypeMap = new ConcurrentHashMap<>();
+        packetTypeMap.put(LOGIN_REQUEST, LoginRequestBiz.class);
+        packetTypeMap.put(MESSAGE_REQUEST, MessageRequestBiz.class);
+    }
+
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
         ByteBuf requestByteBuf = (ByteBuf) msg;
 
         Packet packet = PacketCodeC.INSTANCE.decode(requestByteBuf);
 
-        if (packet instanceof LoginRequestPacket) {
-            System.out.println(new Date() + ": 收到客户端登录请求……");
-            // 登录流程
-            LoginRequestPacket loginRequestPacket = (LoginRequestPacket) packet;
-
-            LoginResponsePacket loginResponsePacket = new LoginResponsePacket();
-            loginResponsePacket.setVersion(packet.getVersion());
-            if (valid(loginRequestPacket)) {
-                loginResponsePacket.setSuccess(true);
-                System.out.println(new Date() + ": 登录成功!");
-            } else {
-                loginResponsePacket.setReason("账号密码校验失败");
-                loginResponsePacket.setSuccess(false);
-                System.out.println(new Date() + ": 登录失败!");
+        packetTypeMap.forEach((type, classObject) -> {
+            if (type.equals(packet.getCommand())) {
+                try {
+                    classObject.newInstance().doChannelRead(ctx, packet);
+                } catch (InstantiationException | IllegalAccessException e) {
+                    e.printStackTrace();
+                }
             }
-            // 登录响应
-            ByteBuf responseByteBuf = PacketCodeC.INSTANCE.encode(ctx.alloc(), loginResponsePacket);
-            ctx.channel().writeAndFlush(responseByteBuf);
-        } else if (packet instanceof MessageRequestPacket) {
-            // 客户端发来消息
-            MessageRequestPacket messageRequestPacket = ((MessageRequestPacket) packet);
-
-            MessageResponsePacket messageResponsePacket = new MessageResponsePacket();
-            System.out.println(new Date() + ": 收到客户端消息: " + messageRequestPacket.getMessage());
-            messageResponsePacket.setMessage("服务端回复【" + messageRequestPacket.getMessage() + "】");
-            ByteBuf responseByteBuf = PacketCodeC.INSTANCE.encode(ctx.alloc(), messageResponsePacket);
-            ctx.channel().writeAndFlush(responseByteBuf);
-        }
-    }
-
-    private boolean valid(LoginRequestPacket loginRequestPacket) {
-        return true;
+        });
     }
 }
